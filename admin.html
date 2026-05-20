@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcard AI — Admin</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --card2:#334155; --accent:#6366f1; --green:#22c55e; --red:#ef4444; --orange:#f59e0b; --text:#e2e8f0; --text2:#94a3b8; --border:#334155; --radius:10px; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:20px; }
+  .container { max-width:900px; margin:0 auto; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+  header h1 { font-size:22px; }
+  .badge { font-size:12px; padding:4px 10px; border-radius:20px; background:var(--green); color:#000; font-weight:600; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+  .grid4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+  .stat-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .stat-card .label { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+  .stat-card .value { font-size:28px; font-weight:700; }
+  .stat-card .sub { font-size:12px; color:var(--text2); margin-top:4px; }
+  .section-title { font-size:13px; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; margin:20px 0 8px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; }
+  th { color:var(--text2); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .bar-wrap { background:var(--card2); border-radius:4px; height:6px; overflow:hidden; min-width:80px; }
+  .bar-fill { height:100%; border-radius:4px; transition:width .3s; }
+  .accent { color:var(--accent2); }
+  .green { color:var(--green); } .red { color:var(--red); } .orange { color:var(--orange); }
+  .refresh { font-size:11px; color:var(--text2); text-align:center; margin-top:20px; }
+  @media (max-width:600px) { .grid2,.grid3,.grid4 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>Flashcard AI</h1>
+      <div style="font-size:13px;color:var(--text2)">Admin Dashboard</div>
+    </div>
+    <div style="text-align:right">
+      <div class="badge" id="status">● Live</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px" id="uptime">--</div>
+    </div>
+  </header>
+
+  <div class="grid4">
+    <div class="stat-card"><div class="label">Total Visits</div><div class="value" id="visits">--</div></div>
+    <div class="stat-card"><div class="label">Active Sessions</div><div class="value" id="sessions">--</div></div>
+    <div class="stat-card"><div class="label">Generations</div><div class="value" id="gens">--</div></div>
+    <div class="stat-card"><div class="label">Avg Gen Time</div><div class="value" id="avgTime">--</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="stat-card">
+      <div class="label">Success Rate</div>
+      <div class="value" id="rate">--</div>
+      <div class="sub"><span class="green" id="sGen">--</span> good · <span class="red" id="fGen">--</span> failed</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Files Uploaded</div>
+      <div class="value" id="totalFiles">--</div>
+      <div class="sub">📄 <span id="fPdf">--</span> · 📝 <span id="fDocx">--</span> · 🖼️ <span id="fImg">--</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">Provider Usage</div>
+  <div id="providers"><div style="color:var(--text2);font-size:13px">No data yet</div></div>
+
+  <div class="section-title">Today (Local Time)</div>
+  <div class="grid4">
+    <div class="stat-card"><div class="label">Visits</div><div class="value" id="tVisits">--</div></div>
+    <div class="stat-card"><div class="label">Generations</div><div class="value" id="tGens">--</div></div>
+    <div class="stat-card"><div class="label">Files</div><div class="value" id="tFiles">--</div></div>
+    <div class="stat-card"><div class="label">Top Provider</div><div class="value" id="tProv" style="font-size:16px">--</div></div>
+  </div>
+
+  <div class="section-title">Subject Mode</div>
+  <div id="modes" class="grid2">
+    <div class="stat-card"><div class="label">🧮 STEM</div><div class="value" id="mStem">--</div></div>
+    <div class="stat-card"><div class="label">📚 Arts & Humanities</div><div class="value" id="mArts">--</div></div>
+  </div>
+
+  <div class="refresh">Auto-refresh every 5s · <span id="lastUpdate">--</span></div>
+</div>
+
+<script>
+const COLORS = ["#6366f1","#22c55e","#f59e0b","#ef4444","#818cf8","#a78bfa","#34d399","#fb923c"];
+
+function bar(key, label, count, total) {
+  const pct = total ? Math.round(count/total*100) : 0;
+  return `<tr><td>${label}</td><td>${count}</td><td><div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:var(--accent)"></div></div></td><td>${pct}%</td></tr>`;
+}
+
+function render(d) {
+  document.getElementById("uptime").textContent = "Up " + formatUptime(d.uptime);
+  document.getElementById("visits").textContent = d.visits;
+  document.getElementById("sessions").textContent = d.activeSessions;
+  document.getElementById("gens").textContent = d.generations.total;
+  document.getElementById("avgTime").textContent = d.avgGenTime;
+  document.getElementById("rate").textContent = d.successRate;
+  document.getElementById("sGen").textContent = d.generations.success;
+  document.getElementById("fGen").textContent = d.generations.fail;
+  document.getElementById("totalFiles").textContent = d.files.pdf + d.files.docx + d.files.image;
+  document.getElementById("fPdf").textContent = d.files.pdf;
+  document.getElementById("fDocx").textContent = d.files.docx;
+  document.getElementById("fImg").textContent = d.files.image;
+
+  // Providers
+  const pKeys = Object.keys(d.providers);
+  const pTotal = pKeys.reduce((s,k) => s+d.providers[k], 0) || 1;
+  document.getElementById("providers").innerHTML = pKeys.length
+    ? `<table>${pKeys.sort((a,b)=>d.providers[b]-d.providers[a]).map((k,i) => bar(i, k, d.providers[k], pTotal)).join("")}</table>`
+    : '<div style="color:var(--text2);font-size:13px">No data yet</div>';
+
+  // Today
+  document.getElementById("tVisits").textContent = d.today.visits || 0;
+  document.getElementById("tGens").textContent = d.today.gens || 0;
+  document.getElementById("tFiles").textContent = d.today.files || 0;
+  const tpKeys = Object.keys(d.today.providers||{});
+  const topP = tpKeys.sort((a,b)=>(d.today.providers[b]||0)-(d.today.providers[a]||0))[0];
+  document.getElementById("tProv").textContent = topP || "--";
+
+  // Modes
+  document.getElementById("mStem").textContent = d.modes.stem || 0;
+  document.getElementById("mArts").textContent = d.modes.liberal_arts || 0;
+  document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
+}
+
+function formatUptime(s) {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+  return h ? h+"h "+m+"m" : m+"m";
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/api/stats");
+    render(await r.json());
+  } catch(e) { document.getElementById("status").textContent = "● Offline"; }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

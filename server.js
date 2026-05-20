@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
+const stats = require("./stats");
 
 const PORT = process.env.PORT || 3000;
 const STATIC = {
@@ -143,59 +144,67 @@ async function callOpenAICompat(pid, apiKey, messages, mt) {
 
 async function handleGenerate(payload, res) {
   const { notes, count, apiKey, provider, mode, file, fileName, fileType } = payload;
+  stats.trackGenStart();
 
-  if (!apiKey || !provider) return fail(res, 400, "API key and provider are required.");
-  if (!PROVIDERS[provider]) return fail(res, 400, `Unknown provider: ${provider}`);
+  let success = false;
+  try {
+    if (!apiKey || !provider) return fail(res, 400, "API key and provider are required.");
+    if (!PROVIDERS[provider]) return fail(res, 400, `Unknown provider: ${provider}`);
 
-  const prov = PROVIDERS[provider];
-  const n = count || 5;
-  const m = mode || "liberal_arts";
-  let text = notes || "";
+    const prov = PROVIDERS[provider];
+    const n = count || 5;
+    const m = mode || "liberal_arts";
+    let text = notes || "";
 
-  // PDF
-  if (file && fileType === "application/pdf") {
-    try {
-      const pd = await pdfParse(Buffer.from(file, "base64"));
-      text = pd.text.trim();
-      if (!text || text.length < 10) return fail(res, 400, "PDF appears empty or scanned (no extractable text).");
-    } catch { return fail(res, 400, "Failed to parse PDF."); }
-  }
+    // PDF
+    if (file && fileType === "application/pdf") {
+      try {
+        const pd = await pdfParse(Buffer.from(file, "base64"));
+        text = pd.text.trim();
+        if (!text || text.length < 10) return fail(res, 400, "PDF appears empty or scanned (no extractable text).");
+      } catch { return fail(res, 400, "Failed to parse PDF."); }
+    }
 
-  // Word .docx
-  if (file && fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    try {
-      const result = await mammoth.extractRawText({ buffer: Buffer.from(file, "base64") });
-      text = result.value.trim();
-      if (!text || text.length < 10) return fail(res, 400, "Word document appears to be empty.");
-    } catch { return fail(res, 400, "Failed to parse Word document."); }
-  }
+    // Word .docx
+    if (file && fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      try {
+        const result = await mammoth.extractRawText({ buffer: Buffer.from(file, "base64") });
+        text = result.value.trim();
+        if (!text || text.length < 10) return fail(res, 400, "Word document appears to be empty.");
+      } catch { return fail(res, 400, "Failed to parse Word document."); }
+    }
 
-  // Image
-  if (file && fileType && fileType.startsWith("image/")) {
-    if (!prov.vision) return fail(res, 400, `${prov.name} doesn't support images. Use OpenRouter, OpenAI, or Gemini.`);
-    const ip = buildPrompt("(extracted from uploaded image)", n, m) + "\n\nCarefully read ALL text visible in the image, then generate flashcards.";
+    // Image
+    if (file && fileType && fileType.startsWith("image/")) {
+      if (!prov.vision) return fail(res, 400, `${prov.name} doesn't support images. Use OpenRouter, OpenAI, or Gemini.`);
+      const ip = buildPrompt("(extracted from uploaded image)", n, m) + "\n\nCarefully read ALL text visible in the image, then generate flashcards.";
 
+      let result;
+      if (provider === "gemini") result = await callGeminiVision(apiKey, file, fileType, ip);
+      else result = await callOpenAICompat(provider, apiKey, [{ role: "user", content: [{ type: "text", text: ip }, { type: "image_url", image_url: { url: `data:${fileType};base64,${file}` } }] }], 4096);
+
+      const cards = parseAIJson(result);
+      if (!Array.isArray(cards) || cards.length === 0) throw new Error("Could not generate flashcards from this image.");
+      success = true;
+      return ok(res, { flashcards: cards, extractedFrom: fileName || "image" });
+    }
+
+    // Text
+    if (!text || text.trim().length < 10) return fail(res, 400, "Paste at least 10 characters or upload a file.");
+
+    const prompt = buildPrompt(text, n, m);
     let result;
-    if (provider === "gemini") result = await callGeminiVision(apiKey, file, fileType, ip);
-    else result = await callOpenAICompat(provider, apiKey, [{ role: "user", content: [{ type: "text", text: ip }, { type: "image_url", image_url: { url: `data:${fileType};base64,${file}` } }] }], 4096);
+    if (provider === "gemini") result = await callGeminiText(apiKey, prompt);
+    else result = await callOpenAICompat(provider, apiKey, [{ role: "system", content: "You are a precise JSON generator. Output only a valid JSON array, no markdown, no extra text." }, { role: "user", content: prompt }], 4096);
 
     const cards = parseAIJson(result);
-    if (!Array.isArray(cards) || cards.length === 0) throw new Error("Could not generate flashcards from this image.");
-    return ok(res, { flashcards: cards, extractedFrom: fileName || "image" });
+    if (!Array.isArray(cards) || cards.length === 0) throw new Error("AI returned no flashcards. Try again.");
+
+    success = true;
+    return ok(res, { flashcards: cards, extractedFrom: (file && fileType === "application/pdf") ? (fileName || "PDF") : null });
+  } finally {
+    stats.trackGenEnd(provider, mode, fileType, success);
   }
-
-  // Text
-  if (!text || text.trim().length < 10) return fail(res, 400, "Paste at least 10 characters or upload a file.");
-
-  const prompt = buildPrompt(text, n, m);
-  let result;
-  if (provider === "gemini") result = await callGeminiText(apiKey, prompt);
-  else result = await callOpenAICompat(provider, apiKey, [{ role: "system", content: "You are a precise JSON generator. Output only a valid JSON array, no markdown, no extra text." }, { role: "user", content: prompt }], 4096);
-
-  const cards = parseAIJson(result);
-  if (!Array.isArray(cards) || cards.length === 0) throw new Error("AI returned no flashcards. Try again.");
-
-  return ok(res, { flashcards: cards, extractedFrom: (file && fileType === "application/pdf") ? (fileName || "PDF") : null });
 }
 
 function ok(res, data) { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify(data)); }
@@ -216,6 +225,17 @@ const server = http.createServer(async (req, res) => {
   if (req.url === "/api/providers" && req.method === "GET") {
     return ok(res, Object.entries(PROVIDERS).map(([id, p]) => ({ id, name: p.name, model: p.model, vision: p.vision })));
   }
+  if (req.url === "/api/stats" && req.method === "GET") {
+    return ok(res, stats.snapshot());
+  }
+
+  // Track visits for main pages
+  if (req.url === "/" || req.url === "/admin") {
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+    stats.trackVisit(ip);
+  }
+
+  if (req.url === "/admin") return serveFile(res, path.join(__dirname, "admin.html"));
   serveFile(res, path.join(__dirname, req.url === "/" ? "/index.html" : req.url));
 });
 
