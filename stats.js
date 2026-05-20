@@ -91,7 +91,6 @@ function snapshot() {
 }
 
 // --- Persist to Supabase ---
-let timer = null;
 async function persist() {
   try {
     const payload = { ...stats, _sessions: [...stats.sessions], sessions: undefined };
@@ -101,10 +100,6 @@ async function persist() {
 
 // Save on every generation + every 30s for visits
 setInterval(persist, 30_000);
-
-// Save on shutdown
-process.on("SIGTERM", async () => { await persist(); process.exit(0); });
-process.on("SIGINT", async () => { await persist(); process.exit(0); });
 
 // Save on shutdown
 process.on("SIGTERM", async () => { await persist(); process.exit(0); });
