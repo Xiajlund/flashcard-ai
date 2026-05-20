@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -243,7 +243,9 @@ const server = http.createServer(async (req, res) => {
   serveFile(res, path.join(__dirname, req.url === "/" ? "/index.html" : req.url));
 });
 
-server.listen(PORT, () => console.log(`✅ Flashcard AI: http://localhost:${PORT}  |  Providers: ${Object.keys(PROVIDERS).join(", ")}`));
+stats.loadStats().then(() => {
+  server.listen(PORT, () => console.log(`✅ Flashcard AI: http://localhost:${PORT}  |  Providers: ${Object.keys(PROVIDERS).join(", ")}`));
+});
 
 process.on("uncaughtException", (err) => console.error("FATAL:", err.message));
 process.on("unhandledRejection", (err) => console.error("REJECTION:", err.message));

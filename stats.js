@@ -1,8 +1,9 @@
-const fs = require("fs");
-const path = require("path");
+const { createClient } = require("@supabase/supabase-js");
 
-const FILE = path.join(__dirname, "stats.json");
-const SAVE_INTERVAL = 60_000; // persist every 60s
+const supabase = createClient(
+  process.env.SUPABASE_URL || "",
+  process.env.SUPABASE_SECRET_KEY || ""
+);
 
 let stats = {
   startedAt: Date.now(),
@@ -13,18 +14,23 @@ let stats = {
   providers: {},
   modes: { stem: 0, liberal_arts: 0 },
   totalGenTime: 0,
-  daily: {}, // "2026-05-20": { visits, gens, ... }
+  daily: {},
 };
 
-// Load persisted stats on startup
-try {
-  if (fs.existsSync(FILE)) {
-    const loaded = JSON.parse(fs.readFileSync(FILE, "utf8"));
-    // Merge, preserving Sets
+// Load stats from Supabase on startup
+async function loadStats() {
+  try {
+    const { data, error } = await supabase
+      .from("app_stats")
+      .select("data")
+      .eq("id", "main")
+      .single();
+    if (error || !data) return;
+    const loaded = data.data;
     stats = { ...stats, ...loaded, sessions: new Set(loaded._sessions || []) };
-    stats.startedAt = Date.now(); // reset start time
-  }
-} catch {}
+    stats.startedAt = Date.now();
+  } catch {}
+}
 
 function today() { return new Date().toISOString().slice(0, 10); }
 
@@ -43,10 +49,12 @@ function trackVisit(sessionId) {
 
 let genStart = 0;
 function trackGenStart() { genStart = performance.now(); }
+
 function trackGenEnd(provider, mode, fileType, success) {
   stats.generations.total++;
   const day = ensureDay(); day.gens++;
-  if (success) { stats.generations.success++; } else { stats.generations.fail++; }
+  if (success) stats.generations.success++;
+  else stats.generations.fail++;
   if (provider) { stats.providers[provider] = (stats.providers[provider] || 0) + 1; day.providers[provider] = (day.providers[provider] || 0) + 1; }
   if (mode) { stats.modes[mode] = (stats.modes[mode] || 0) + 1; day.modes[mode] = (day.modes[mode] || 0) + 1; }
   if (fileType) {
@@ -59,6 +67,7 @@ function trackGenEnd(provider, mode, fileType, success) {
     stats.totalGenTime += performance.now() - genStart;
   }
   genStart = 0;
+  persist();
 }
 
 // --- Snapshot for admin ---
@@ -81,16 +90,24 @@ function snapshot() {
   };
 }
 
-// Periodically persist
-function persist() {
+// --- Persist to Supabase ---
+let timer = null;
+async function persist() {
   try {
-    fs.writeFileSync(FILE, JSON.stringify({ ...stats, _sessions: [...stats.sessions], sessions: undefined }));
+    const payload = { ...stats, _sessions: [...stats.sessions], sessions: undefined };
+    await supabase.from("app_stats").upsert({ id: "main", data: payload, updated_at: new Date().toISOString() });
   } catch {}
 }
-setInterval(persist, SAVE_INTERVAL);
 
-// Save on shutdown (Render sends SIGTERM on scale-to-zero)
-process.on("SIGTERM", () => { persist(); process.exit(0); });
-process.on("SIGINT", () => { persist(); process.exit(0); });
+// Save on every generation + every 30s for visits
+setInterval(persist, 30_000);
 
-module.exports = { trackVisit, trackGenStart, trackGenEnd, snapshot };
+// Save on shutdown
+process.on("SIGTERM", async () => { await persist(); process.exit(0); });
+process.on("SIGINT", async () => { await persist(); process.exit(0); });
+
+// Save on shutdown
+process.on("SIGTERM", async () => { await persist(); process.exit(0); });
+process.on("SIGINT", async () => { await persist(); process.exit(0); });
+
+module.exports = { loadStats, trackVisit, trackGenStart, trackGenEnd, snapshot };
