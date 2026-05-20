@@ -138,6 +138,11 @@
       <select id="provider"></select>
       <div class="provider-hint" id="providerHint"></div>
     </div>
+    <div class="card" id="apikeyCard">
+      <label data-i18n="apikey">API Key</label>
+      <input type="password" id="apiKey" data-i18n-placeholder="apikey_placeholder" autocomplete="off">
+      <div class="provider-hint" data-i18n="apikey_stored">Stored only in your browser</div>
+    </div>
     <div class="section-label" data-i18n="subject_mode">Subject Mode</div>
     <div class="mode-row" id="modeRow">
       <div class="mode-card active" data-mode="stem" onclick="selectMode('stem')">
@@ -504,13 +509,27 @@ function updateProviderHelp() {
 document.addEventListener("DOMContentLoaded", () => {
   renderProviders();
   updateProviderHelp();
+  loadSavedKey();
 });
 
 document.getElementById("provider").addEventListener("change", function() {
   savedProv = this.value;
   localStorage.setItem("fc_provider", savedProv);
   updateProviderHelp();
+  loadSavedKey();
   document.getElementById("apiKey").placeholder = t("apikey_placeholder");
+});
+
+// ============ API Key per provider ============
+function loadSavedKey() {
+  const keys = JSON.parse(localStorage.getItem("fc_apikeys") || "{}");
+  document.getElementById("apiKey").value = keys[savedProv] || "";
+}
+document.getElementById("apiKey").addEventListener("input", function() {
+  const keys = JSON.parse(localStorage.getItem("fc_apikeys") || "{}");
+  if (this.value.trim()) keys[savedProv] = this.value.trim();
+  else delete keys[savedProv];
+  localStorage.setItem("fc_apikeys", JSON.stringify(keys));
 });
 
 // ============ State ============
@@ -606,7 +625,7 @@ async function generate() {
   btn.disabled = true; btn.textContent = t("generating");
 
   try {
-    const body = { notes, count, provider, mode };
+    const body = { notes, count, provider, mode, apiKey: document.getElementById("apiKey").value.trim() || undefined };
     if (currentFile) { body.file = currentFile.base64; body.fileName = currentFile.name; body.fileType = currentFile.type; }
     const resp = await fetch("/api/generate", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
     const data = await resp.json();
