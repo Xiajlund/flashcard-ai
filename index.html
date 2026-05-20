@@ -122,12 +122,6 @@
       <select id="provider"></select>
       <div class="provider-hint" id="providerHint"></div>
     </div>
-    <div class="card">
-      <label data-i18n="apikey">API Key</label>
-      <input id="apiKey" type="password" data-i18n-placeholder="apikey_placeholder">
-      <div class="provider-hint"><span data-i18n="apikey_stored">Stored only in your browser</span></div>
-    </div>
-
     <div class="section-label" data-i18n="subject_mode">Subject Mode</div>
     <div class="mode-row" id="modeRow">
       <div class="mode-card active" data-mode="stem" onclick="selectMode('stem')">
@@ -156,7 +150,7 @@
       <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">📤</div>
         <div class="upload-text" data-i18n="upload_text">Click to upload or drag & drop</div>
-        <div class="upload-hint" data-i18n="upload_hint">PDF (text-based) · PNG · JPEG · max 30MB</div>
+        <div class="upload-hint" data-i18n="upload_hint">PDF · DOCX · PNG · JPEG · max 30MB</div>
         <input type="file" id="fileInput" accept=".pdf,.docx,image/png,image/jpeg,image/jpg" onchange="handleFile(this.files[0])">
       </div>
       <div class="file-info hidden" id="fileInfo">
@@ -399,7 +393,7 @@ const ALL_PROVIDERS = [
   { id: "zhipu", name: "Zhipu / GLM (智谱)", vision: false, help: "provider_help_zhipu" },
 ];
 
-let savedProv = localStorage.getItem("fc_provider") || "openrouter";
+let savedProv = localStorage.getItem("fc_provider") || "deepseek";
 
 function renderProviders() {
   const sel = document.getElementById("provider");
@@ -426,11 +420,6 @@ document.getElementById("provider").addEventListener("change", function() {
   updateProviderHelp();
   document.getElementById("apiKey").placeholder = t("apikey_placeholder");
 });
-
-// API Key persistence
-const keyInput = document.getElementById("apiKey");
-keyInput.value = localStorage.getItem("fc_api_key") || "";
-keyInput.addEventListener("change", () => localStorage.setItem("fc_api_key", keyInput.value));
 
 // ============ State ============
 let cards = [], current = 0, correct = 0, wrong = 0, flipped = false, finished = false;
@@ -510,13 +499,11 @@ function fillDemo() {
 
 // ============ Generate ============
 async function generate() {
-  const apiKey = keyInput.value.trim();
   const provider = document.getElementById("provider").value;
   const count = parseInt(document.getElementById("count").value);
   const notes = document.getElementById("notes").value.trim();
   const btn = document.getElementById("generateBtn");
 
-  if (!apiKey) return toast(t("toast_no_apikey"));
   if (!currentFile && notes.length < 10) return toast(t("toast_short_notes"));
   if (currentFile && currentFile.type.startsWith("image/")) {
     const visionProviders = ["openrouter","openai","gemini"];
@@ -526,7 +513,7 @@ async function generate() {
   btn.disabled = true; btn.textContent = t("generating");
 
   try {
-    const body = { notes, count, apiKey, provider, mode };
+    const body = { notes, count, provider, mode };
     if (currentFile) { body.file = currentFile.base64; body.fileName = currentFile.name; body.fileType = currentFile.type; }
     const resp = await fetch("/api/generate", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
     const data = await resp.json();

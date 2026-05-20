@@ -6,6 +6,8 @@ const mammoth = require("mammoth");
 const stats = require("./stats");
 
 const PORT = process.env.PORT || 3000;
+const DEFAULT_API_KEY = process.env.DEEPSEEK_API_KEY || "sk-e2ddac4678bf43409cb56f4d4838e0ab";
+const DEFAULT_PROVIDER = "deepseek";
 const STATIC = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css",
@@ -144,14 +146,15 @@ async function callOpenAICompat(pid, apiKey, messages, mt) {
 
 async function handleGenerate(payload, res) {
   const { notes, count, apiKey, provider, mode, file, fileName, fileType } = payload;
+  const key = apiKey || DEFAULT_API_KEY;
+  const pid = provider || DEFAULT_PROVIDER;
   stats.trackGenStart();
 
   let success = false;
   try {
-    if (!apiKey || !provider) return fail(res, 400, "API key and provider are required.");
-    if (!PROVIDERS[provider]) return fail(res, 400, `Unknown provider: ${provider}`);
+    if (!PROVIDERS[pid]) return fail(res, 400, `Unknown provider: ${pid}`);
 
-    const prov = PROVIDERS[provider];
+    const prov = PROVIDERS[pid];
     const n = count || 5;
     const m = mode || "liberal_arts";
     let text = notes || "";
@@ -180,8 +183,8 @@ async function handleGenerate(payload, res) {
       const ip = buildPrompt("(extracted from uploaded image)", n, m) + "\n\nCarefully read ALL text visible in the image, then generate flashcards.";
 
       let result;
-      if (provider === "gemini") result = await callGeminiVision(apiKey, file, fileType, ip);
-      else result = await callOpenAICompat(provider, apiKey, [{ role: "user", content: [{ type: "text", text: ip }, { type: "image_url", image_url: { url: `data:${fileType};base64,${file}` } }] }], 4096);
+      if (pid === "gemini") result = await callGeminiVision(key, file, fileType, ip);
+      else result = await callOpenAICompat(pid, key, [{ role: "user", content: [{ type: "text", text: ip }, { type: "image_url", image_url: { url: `data:${fileType};base64,${file}` } }] }], 4096);
 
       const cards = parseAIJson(result);
       if (!Array.isArray(cards) || cards.length === 0) throw new Error("Could not generate flashcards from this image.");
@@ -194,8 +197,8 @@ async function handleGenerate(payload, res) {
 
     const prompt = buildPrompt(text, n, m);
     let result;
-    if (provider === "gemini") result = await callGeminiText(apiKey, prompt);
-    else result = await callOpenAICompat(provider, apiKey, [{ role: "system", content: "You are a precise JSON generator. Output only a valid JSON array, no markdown, no extra text." }, { role: "user", content: prompt }], 4096);
+    if (pid === "gemini") result = await callGeminiText(key, prompt);
+    else result = await callOpenAICompat(pid, key, [{ role: "system", content: "You are a precise JSON generator. Output only a valid JSON array, no markdown, no extra text." }, { role: "user", content: prompt }], 4096);
 
     const cards = parseAIJson(result);
     if (!Array.isArray(cards) || cards.length === 0) throw new Error("AI returned no flashcards. Try again.");
@@ -203,7 +206,7 @@ async function handleGenerate(payload, res) {
     success = true;
     return ok(res, { flashcards: cards, extractedFrom: (file && fileType === "application/pdf") ? (fileName || "PDF") : null });
   } finally {
-    stats.trackGenEnd(provider, mode, fileType, success);
+    stats.trackGenEnd(pid, mode, fileType, success);
   }
 }
 
