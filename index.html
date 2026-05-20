@@ -168,6 +168,8 @@
       </select>
     </div>
     <button class="btn btn-primary" id="generateBtn" onclick="generate()" data-i18n="generate_btn">⚡ Generate Flashcards</button>
+    <span class="demo-link" onclick="document.getElementById('importFile').click()" data-i18n="import_link">📂 Import saved cards (JSON) →</span>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importCards(this.files[0])">
   </section>
 
   <!-- Study -->
@@ -192,7 +194,8 @@
       <button class="btn btn-red" onclick="answer(false)" data-i18n="btn_again">✕ Need Review</button>
       <button class="btn btn-green" onclick="answer(true)" data-i18n="btn_gotit">✓ Got It</button>
     </div>
-    <button class="btn btn-outline" style="width:100%" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
+    <button class="btn btn-outline" style="width:100%;margin-bottom:8px" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
+    <button class="btn btn-outline" style="width:100%" onclick="exportCards()" data-i18n="btn_export">💾 Export Cards (JSON)</button>
   </section>
 
   <!-- Summary -->
@@ -207,6 +210,7 @@
         <button class="btn btn-outline" style="flex:1" onclick="reviewWrong()" id="reviewBtn" data-i18n="btn_review">🔄 Review Wrong Cards</button>
         <button class="btn btn-primary" style="flex:1" onclick="resetAll()" data-i18n="btn_new">New Material</button>
       </div>
+      <button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="exportCards()" data-i18n="btn_export">💾 Export Cards (JSON)</button>
     </div>
   </section>
 </div>
@@ -251,6 +255,8 @@ const I18N = {
     provider_help_zhipu: "Get a key at open.bigmodel.cn",
     provider_help_deepseek: "Get a key at platform.deepseek.com",
     provider_help_gemini: "Get a free key at aistudio.google.com",
+    btn_export: "💾 Export Cards (JSON)",
+    import_link: "📂 Import saved cards (JSON) →",
   },
   zh: {
     subtitle: "上传笔记或粘贴文本 — AI 自动生成复习闪卡",
@@ -287,6 +293,8 @@ const I18N = {
     provider_help_zhipu: "在 open.bigmodel.cn 获取密钥（智谱）",
     provider_help_deepseek: "在 platform.deepseek.com 获取密钥",
     provider_help_gemini: "在 aistudio.google.com 获取免费密钥",
+    btn_export: "💾 导出卡片 (JSON)",
+    import_link: "📂 导入已保存的卡片 (JSON) →",
   },
   ja: {
     subtitle: "ノートをアップロードまたはテキストを貼り付け — AIが学習カードを生成",
@@ -323,6 +331,8 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn でキーを取得",
     provider_help_deepseek: "platform.deepseek.com でキーを取得",
     provider_help_gemini: "aistudio.google.com で無料キーを取得",
+    btn_export: "💾 カードをエクスポート (JSON)",
+    import_link: "📂 保存したカードをインポート (JSON) →",
   },
   ko: {
     subtitle: "노트를 업로드하거나 텍스트를 붙여넣기 — AI가 학습 카드를 생성",
@@ -359,6 +369,8 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn에서 키 발급",
     provider_help_deepseek: "platform.deepseek.com에서 키 발급",
     provider_help_gemini: "aistudio.google.com에서 무료 키 발급",
+    btn_export: "💾 카드 내보내기 (JSON)",
+    import_link: "📂 저장된 카드 가져오기 (JSON) →",
   },
 };
 
@@ -571,6 +583,33 @@ function resetAll() {
   document.getElementById("summary").classList.add("hidden");
   document.getElementById("setup").classList.remove("hidden");
   document.getElementById("extractedNote").innerHTML = "";
+}
+
+function exportCards() {
+  const blob = new Blob([JSON.stringify(cards, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `flashcards-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Saved " + cards.length + " cards to your computer.", true);
+}
+
+function importCards(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data) || data.length === 0) throw new Error("Invalid format");
+      cards = data; current = 0; correct = 0; wrong = 0; finished = false;
+      document.getElementById("extractedNote").innerHTML = "";
+      showStudy();
+      toast("Loaded " + cards.length + " cards.", true);
+    } catch (e) { toast("Invalid flashcard file. Please check the JSON format."); }
+  };
+  r.readAsText(file);
+  document.getElementById("importFile").value = "";
 }
 </script>
 </body>
