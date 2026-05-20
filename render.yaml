@@ -7,5 +7,9 @@ services:
     envVars:
       - key: DEEPSEEK_API_KEY
         sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
       - key: PORT
         value: 3000
