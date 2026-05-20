@@ -72,7 +72,7 @@ const PROVIDERS = {
 function serveFile(res, filePath) {
   const ext = path.extname(filePath);
   const type = STATIC[ext] || "application/octet-stream";
-  try { res.writeHead(200, { "Content-Type": type }); res.end(fs.readFileSync(filePath)); }
+  try { res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-cache, no-store, must-revalidate" }); res.end(fs.readFileSync(filePath)); }
   catch { res.writeHead(404); res.end("Not found"); }
 }
 
