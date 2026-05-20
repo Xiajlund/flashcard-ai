@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcard AI</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --card2: #334155; --accent: #6366f1;
+    --accent2: #818cf8; --green: #22c55e; --red: #ef4444; --orange: #f59e0b;
+    --text: #e2e8f0; --text2: #94a3b8; --border: #334155; --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "Noto Sans JP", "Noto Sans KR", sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; justify-content: center; padding: 20px;
+  }
+  .app { width: 100%; max-width: 680px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 0 8px; }
+  header h1 { font-size: 28px; background: linear-gradient(135deg, var(--accent2), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  header p { color: var(--text2); margin-top: 4px; font-size: 14px; }
+  .lang-select { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 8px; font-size: 13px; cursor: pointer; outline: none; font-family: inherit; }
+
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text2); margin: 16px 0 8px; }
+
+  .mode-row { display: flex; gap: 10px; }
+  .mode-card { flex: 1; background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all .2s; text-align: center; }
+  .mode-card:hover { border-color: var(--accent2); }
+  .mode-card.active { border-color: var(--accent); background: #1e1b4b; }
+  .mode-icon { font-size: 28px; margin-bottom: 4px; }
+  .mode-title { font-size: 15px; font-weight: 600; }
+  .mode-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; transition: all .15s; background: none; font-family: inherit; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; }
+  .card label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  input, textarea, select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px; font-family: inherit; outline: none; transition: border .15s; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 180px; }
+  select { cursor: pointer; }
+
+  .upload-zone { background: var(--card); border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px; text-align: center; cursor: pointer; transition: all .2s; margin-bottom: 8px; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent2); background: #1e1b4b; }
+  .upload-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-text { font-size: 14px; }
+  .upload-hint { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .upload-zone input[type=file] { display: none; }
+  .file-info { background: var(--card); border: 1px solid var(--green); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }
+  .file-info .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-info .remove { cursor: pointer; color: var(--red); font-weight: 700; font-size: 16px; }
+  .provider-hint { margin-top: 4px; font-size: 11px; color: var(--text2); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; font-family: inherit; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; padding: 14px; font-size: 16px; }
+  .btn-primary:hover:not(:disabled) { background: #4f46e5; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { background: var(--card2); }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-green:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover:not(:disabled) { filter: brightness(1.1); }
+
+  .deck-area { margin-top: 16px; }
+  .scene { perspective: 800px; margin-bottom: 12px; }
+  .flip-card { width: 100%; height: 280px; cursor: pointer; position: relative; }
+  .flip-inner { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform .5s; }
+  .flip-inner.flipped { transform: rotateY(180deg); }
+  .flip-front, .flip-back { position: absolute; inset: 0; backface-visibility: hidden; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; padding: 32px 28px; font-size: 17px; text-align: center; line-height: 1.7; }
+  .flip-front { background: var(--card); border: 2px solid var(--accent); }
+  .flip-back { background: var(--card2); border: 2px solid var(--green); transform: rotateY(180deg); overflow-y: auto; align-items: flex-start; padding-top: 40px; }
+  .flip-hint { text-align: center; font-size: 12px; color: var(--text2); margin-bottom: 12px; }
+
+  .progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 13px; color: var(--text2); }
+  .progress-bar { flex: 1; height: 5px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .2s; }
+  .action-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .action-row .btn { flex: 1; }
+
+  .summary { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; text-align: center; }
+  .summary h2 { margin-bottom: 16px; }
+  .summary-stats { display: flex; justify-content: center; gap: 36px; margin-bottom: 20px; }
+  .stat { text-align: center; }
+  .stat-num { font-size: 38px; font-weight: 700; }
+  .stat-num.green { color: var(--green); } .stat-num.red { color: var(--red); }
+  .stat-label { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  .hidden { display: none !important; }
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--red); color: #fff; padding: 12px 22px; border-radius: 8px; font-size: 14px; z-index: 999; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.info { background: var(--accent); }
+  .extracted-badge { display: inline-block; background: #1e3a3a; color: var(--green); font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
+  .demo-link { font-size: 12px; color: var(--accent2); cursor: pointer; text-decoration: underline; display: block; text-align: center; margin-top: 8px; }
+
+  @media (max-width: 480px) { .mode-row { flex-direction: column; } .flip-card { height: 300px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Flashcard AI</h1>
+      <p data-i18n="subtitle">Upload notes or paste text — AI turns them into study cards</p>
+    </div>
+    <select class="lang-select" id="langSelect" onchange="setLang(this.value)">
+      <option value="en">English</option>
+      <option value="zh">中文</option>
+      <option value="ja">日本語</option>
+      <option value="ko">한국어</option>
+    </select>
+  </header>
+
+  <section id="setup">
+    <div class="card">
+      <label data-i18n="provider">AI Provider</label>
+      <select id="provider"></select>
+      <div class="provider-hint" id="providerHint"></div>
+    </div>
+    <div class="card">
+      <label data-i18n="apikey">API Key</label>
+      <input id="apiKey" type="password" data-i18n-placeholder="apikey_placeholder">
+      <div class="provider-hint"><span data-i18n="apikey_stored">Stored only in your browser</span></div>
+    </div>
+
+    <div class="section-label" data-i18n="subject_mode">Subject Mode</div>
+    <div class="mode-row" id="modeRow">
+      <div class="mode-card active" data-mode="stem" onclick="selectMode('stem')">
+        <div class="mode-icon">🧮</div>
+        <div class="mode-title" data-i18n="stem_title">STEM</div>
+        <div class="mode-desc" data-i18n="stem_desc">Problem → solution steps → answer</div>
+      </div>
+      <div class="mode-card" data-mode="liberal_arts" onclick="selectMode('liberal_arts')">
+        <div class="mode-icon">📚</div>
+        <div class="mode-title" data-i18n="arts_title">Arts & Humanities</div>
+        <div class="mode-desc" data-i18n="arts_desc">Concept → definition → memory hooks</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="text" onclick="switchTab('text')"><span data-i18n="tab_paste">✏️ Paste Notes</span></button>
+      <button class="tab" data-tab="file" onclick="switchTab('file')"><span data-i18n="tab_upload">📎 Upload File</span></button>
+    </div>
+
+    <div id="tab-text">
+      <textarea id="notes" data-i18n-placeholder="notes_placeholder"></textarea>
+      <span class="demo-link" onclick="fillDemo()" data-i18n="demo_link">Try with demo notes →</span>
+    </div>
+
+    <div id="tab-file" class="hidden">
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text" data-i18n="upload_text">Click to upload or drag & drop</div>
+        <div class="upload-hint" data-i18n="upload_hint">PDF (text-based) · PNG · JPEG · max 30MB</div>
+        <input type="file" id="fileInput" accept=".pdf,.docx,image/png,image/jpeg,image/jpg" onchange="handleFile(this.files[0])">
+      </div>
+      <div class="file-info hidden" id="fileInfo">
+        <span>📄</span><span class="name" id="fileName"></span>
+        <span style="font-size:11px;color:var(--text2)" id="fileSize"></span>
+        <span class="remove" onclick="clearFile()">✕</span>
+      </div>
+      <div class="provider-hint" data-i18n="image_hint">💡 Image upload needs a vision-capable provider (OpenRouter, OpenAI, Gemini).</div>
+    </div>
+
+    <div class="card">
+      <label data-i18n="card_count">Number of Cards</label>
+      <select id="count">
+        <option value="3">3</option><option value="5" selected>5</option><option value="8">8</option><option value="10">10</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="generateBtn" onclick="generate()" data-i18n="generate_btn">⚡ Generate Flashcards</button>
+  </section>
+
+  <!-- Study -->
+  <section id="study" class="deck-area hidden">
+    <div class="progress-row">
+      <span id="progress">1 / 5</span>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <span id="correctBadge">✅ <span id="correctCount">0</span></span>
+      <span id="wrongBadge">🔄 <span id="wrongCount">0</span></span>
+    </div>
+    <div id="extractedNote" style="font-size:11px;color:var(--text2);text-align:center;margin-bottom:8px"></div>
+    <div class="scene">
+      <div class="flip-card" id="flipCard" onclick="flip()">
+        <div class="flip-inner" id="flipInner">
+          <div class="flip-front" id="cardFront">Question</div>
+          <div class="flip-back" id="cardBack">Answer</div>
+        </div>
+      </div>
+    </div>
+    <div class="flip-hint" data-i18n="flip_hint">👆 Tap the card to flip</div>
+    <div class="action-row">
+      <button class="btn btn-red" onclick="answer(false)" data-i18n="btn_again">✕ Need Review</button>
+      <button class="btn btn-green" onclick="answer(true)" data-i18n="btn_gotit">✓ Got It</button>
+    </div>
+    <button class="btn btn-outline" style="width:100%" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
+  </section>
+
+  <!-- Summary -->
+  <section id="summary" class="hidden">
+    <div class="summary">
+      <h2 data-i18n="summary_title">Session Complete 🎉</h2>
+      <div class="summary-stats">
+        <div class="stat"><div class="stat-num green" id="sumCorrect">0</div><div class="stat-label" data-i18n="sum_correct">Mastered</div></div>
+        <div class="stat"><div class="stat-num red" id="sumWrong">0</div><div class="stat-label" data-i18n="sum_wrong">To Review</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1" onclick="reviewWrong()" id="reviewBtn" data-i18n="btn_review">🔄 Review Wrong Cards</button>
+        <button class="btn btn-primary" style="flex:1" onclick="resetAll()" data-i18n="btn_new">New Material</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ i18n ============
+const I18N = {
+  en: {
+    subtitle: "Upload notes or paste text — AI turns them into study cards",
+    provider: "AI Provider", apikey: "API Key", apikey_placeholder: "Paste your API key here...",
+    apikey_stored: "Stored only in your browser",
+    subject_mode: "Subject Mode",
+    stem_title: "STEM", stem_desc: "Problem → solution steps → answer",
+    arts_title: "Arts & Humanities", arts_desc: "Concept → definition → memory hooks",
+    tab_paste: "✏️ Paste Notes", tab_upload: "📎 Upload File",
+    notes_placeholder: "Paste your lecture notes, textbook excerpts, or any study material here...\n\nFor STEM subjects: include problems and formulas.\nFor Arts & Humanities: include key concepts, dates, theories.",
+    demo_link: "Try with demo notes →",
+    upload_text: "Click to upload or drag & drop",
+    upload_hint: "PDF · DOCX · PNG · JPEG · max 30MB",
+    image_hint: "💡 Image upload needs a vision-capable provider (OpenRouter, OpenAI, Gemini).",
+    card_count: "Number of Cards",
+    generate_btn: "⚡ Generate Flashcards",
+    generating: "Generating...",
+    flip_hint: "👆 Tap the card to flip",
+    btn_again: "✕ Need Review", btn_gotit: "✓ Got It",
+    btn_back: "← Back to Setup",
+    summary_title: "Session Complete 🎉",
+    sum_correct: "Mastered", sum_wrong: "To Review",
+    btn_review: "🔄 Review Wrong Cards", btn_new: "New Material",
+    toast_no_apikey: "Please enter your API key first.",
+    toast_short_notes: "Paste at least 10 characters or upload a file.",
+    toast_demo: "Demo notes loaded! Switch mode to see STEM vs Arts difference.",
+    toast_file_unsupported: "Unsupported file type. Use PDF, PNG, or JPEG.",
+    toast_file_large: "File too large. Max 30MB.",
+    extracted_from: "📄 Extracted from",
+    provider_help_openrouter: "Get a key at openrouter.ai — one key for all models",
+    provider_help_openai: "Get a key at platform.openai.com",
+    provider_help_groq: "Get a free key at console.groq.com",
+    provider_help_qwen: "Get a key at dashscope.aliyun.com",
+    provider_help_zhipu: "Get a key at open.bigmodel.cn",
+    provider_help_deepseek: "Get a key at platform.deepseek.com",
+    provider_help_gemini: "Get a free key at aistudio.google.com",
+  },
+  zh: {
+    subtitle: "上传笔记或粘贴文本 — AI 自动生成复习闪卡",
+    provider: "AI 服务商", apikey: "API 密钥", apikey_placeholder: "在此粘贴 API 密钥...",
+    apikey_stored: "仅存储在你的浏览器中",
+    subject_mode: "学科模式",
+    stem_title: "理工科", stem_desc: "出题 → 解题步骤 → 答案",
+    arts_title: "文史商科", arts_desc: "概念 → 定义 → 关联记忆",
+    tab_paste: "✏️ 粘贴笔记", tab_upload: "📎 上传文件",
+    notes_placeholder: "在此粘贴课堂笔记、教材摘录或任何学习材料...\n\n理工科：包含题目和公式。\n文史商科：包含关键概念、时间、理论。",
+    demo_link: "试试演示笔记 →",
+    upload_text: "点击上传或拖拽文件",
+    upload_hint: "PDF · DOCX · PNG · JPEG · 最大 30MB",
+    image_hint: "💡 图片上传需使用支持视觉的 AI（OpenRouter、OpenAI、Gemini）。",
+    card_count: "生成数量",
+    generate_btn: "⚡ 生成闪卡",
+    generating: "生成中...",
+    flip_hint: "👆 点击卡片翻转",
+    btn_again: "✕ 需要复习", btn_gotit: "✓ 已掌握",
+    btn_back: "← 返回设置",
+    summary_title: "学习完成 🎉",
+    sum_correct: "已掌握", sum_wrong: "需复习",
+    btn_review: "🔄 复习错题", btn_new: "新学习材料",
+    toast_no_apikey: "请先输入 API 密钥。",
+    toast_short_notes: "请粘贴至少 10 个字符或上传文件。",
+    toast_demo: "演示笔记已加载！切换学科模式查看 STEM 和文科的区别。",
+    toast_file_unsupported: "不支持的文件类型，请使用 PDF、PNG 或 JPEG。",
+    toast_file_large: "文件过大，最大支持 30MB。",
+    extracted_from: "📄 提取自",
+    provider_help_openrouter: "在 openrouter.ai 获取密钥 — 一个密钥调用所有模型",
+    provider_help_openai: "在 platform.openai.com 获取密钥",
+    provider_help_groq: "在 console.groq.com 获取免费密钥",
+    provider_help_qwen: "在 dashscope.aliyun.com 获取密钥（阿里云）",
+    provider_help_zhipu: "在 open.bigmodel.cn 获取密钥（智谱）",
+    provider_help_deepseek: "在 platform.deepseek.com 获取密钥",
+    provider_help_gemini: "在 aistudio.google.com 获取免费密钥",
+  },
+  ja: {
+    subtitle: "ノートをアップロードまたはテキストを貼り付け — AIが学習カードを生成",
+    provider: "AIプロバイダー", apikey: "APIキー", apikey_placeholder: "APIキーを貼り付け...",
+    apikey_stored: "ブラウザにのみ保存されます",
+    subject_mode: "科目モード",
+    stem_title: "理系", stem_desc: "問題 → 解答手順 → 答え",
+    arts_title: "文系・ビジネス", arts_desc: "概念 → 定義 → 記憶のフック",
+    tab_paste: "✏️ テキスト貼り付け", tab_upload: "📎 ファイルアップロード",
+    notes_placeholder: "講義ノートや教科書の抜粋を貼り付けてください...\n\n理系：問題や数式を含めてください。\n文系：重要な概念、日付、理論を含めてください。",
+    demo_link: "デモノートを試す →",
+    upload_text: "クリックしてアップロード、またはドラッグ＆ドロップ",
+    upload_hint: "PDF · DOCX · PNG · JPEG · 最大30MB",
+    image_hint: "💡 画像アップロードには画像対応AI（OpenRouter、OpenAI、Gemini）が必要です。",
+    card_count: "カード数",
+    generate_btn: "⚡ フラッシュカード生成",
+    generating: "生成中...",
+    flip_hint: "👆 カードをタップして裏返す",
+    btn_again: "✕ 要復習", btn_gotit: "✓ 理解した",
+    btn_back: "← 設定に戻る",
+    summary_title: "セッション完了 🎉",
+    sum_correct: "習得済み", sum_wrong: "要復習",
+    btn_review: "🔄 間違えたカードを復習", btn_new: "新しい教材",
+    toast_no_apikey: "APIキーを入力してください。",
+    toast_short_notes: "10文字以上入力するか、ファイルをアップロードしてください。",
+    toast_demo: "デモノートを読み込みました！モードを切り替えて違いを確認してください。",
+    toast_file_unsupported: "未対応のファイル形式です。PDF、PNG、JPEGを使用してください。",
+    toast_file_large: "ファイルが大きすぎます。最大30MBです。",
+    extracted_from: "📄 抽出元",
+    provider_help_openrouter: "openrouter.ai でキーを取得 — 1つのキーですべてのモデルに対応",
+    provider_help_openai: "platform.openai.com でキーを取得",
+    provider_help_groq: "console.groq.com で無料キーを取得",
+    provider_help_qwen: "dashscope.aliyun.com でキーを取得",
+    provider_help_zhipu: "open.bigmodel.cn でキーを取得",
+    provider_help_deepseek: "platform.deepseek.com でキーを取得",
+    provider_help_gemini: "aistudio.google.com で無料キーを取得",
+  },
+  ko: {
+    subtitle: "노트를 업로드하거나 텍스트를 붙여넣기 — AI가 학습 카드를 생성",
+    provider: "AI 제공업체", apikey: "API 키", apikey_placeholder: "API 키를 붙여넣기...",
+    apikey_stored: "브라우저에만 저장됩니다",
+    subject_mode: "과목 모드",
+    stem_title: "이공계", stem_desc: "문제 → 풀이 단계 → 정답",
+    arts_title: "인문·비즈니스", arts_desc: "개념 → 정의 → 기억 연결",
+    tab_paste: "✏️ 텍스트 붙여넣기", tab_upload: "📎 파일 업로드",
+    notes_placeholder: "강의 노트, 교과서 발췌, 학습 자료를 여기에 붙여넣으세요...\n\n이공계: 문제와 공식을 포함하세요.\n인문·비즈니스: 주요 개념, 날짜, 이론을 포함하세요.",
+    demo_link: "데모 노트로 시도 →",
+    upload_text: "클릭하여 업로드 또는 드래그 앤 드롭",
+    upload_hint: "PDF · DOCX · PNG · JPEG · 최대 30MB",
+    image_hint: "💡 이미지 업로드는 비전 지원 AI (OpenRouter, OpenAI, Gemini)가 필요합니다.",
+    card_count: "카드 수",
+    generate_btn: "⚡ 플래시카드 생성",
+    generating: "생성 중...",
+    flip_hint: "👆 카드를 탭하여 뒤집기",
+    btn_again: "✕ 복습 필요", btn_gotit: "✓ 이해함",
+    btn_back: "← 설정으로 돌아가기",
+    summary_title: "세션 완료 🎉",
+    sum_correct: "숙달됨", sum_wrong: "복습 필요",
+    btn_review: "🔄 틀린 카드 복습", btn_new: "새 학습 자료",
+    toast_no_apikey: "API 키를 먼저 입력하세요.",
+    toast_short_notes: "최소 10자 이상 입력하거나 파일을 업로드하세요.",
+    toast_demo: "데모 노트가 로드되었습니다! 모드를 전환하여 차이를 확인하세요.",
+    toast_file_unsupported: "지원되지 않는 파일 형식입니다. PDF, PNG, JPEG를 사용하세요.",
+    toast_file_large: "파일이 너무 큽니다. 최대 30MB입니다.",
+    extracted_from: "📄 추출 출처",
+    provider_help_openrouter: "openrouter.ai에서 키 발급 — 하나의 키로 모든 모델 사용",
+    provider_help_openai: "platform.openai.com에서 키 발급",
+    provider_help_groq: "console.groq.com에서 무료 키 발급",
+    provider_help_qwen: "dashscope.aliyun.com에서 키 발급",
+    provider_help_zhipu: "open.bigmodel.cn에서 키 발급",
+    provider_help_deepseek: "platform.deepseek.com에서 키 발급",
+    provider_help_gemini: "aistudio.google.com에서 무료 키 발급",
+  },
+};
+
+let lang = localStorage.getItem("fc_lang") || "en";
+function t(key) { return (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key; }
+
+function setLang(l) {
+  lang = l; localStorage.setItem("fc_lang", l);
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  // Update provider dropdown to refresh labels
+  renderProviders();
+  updateProviderHelp();
+  // Update generate button text based on current state
+  const gb = document.getElementById("generateBtn");
+  if (!gb.disabled) gb.textContent = t("generate_btn");
+}
+
+// Init language
+document.getElementById("langSelect").value = lang;
+document.addEventListener("DOMContentLoaded", () => setLang(lang));
+
+// ============ Providers ============
+const ALL_PROVIDERS = [
+  { id: "openrouter", name: "OpenRouter — one key, all models (GPT-4o, Claude, etc.)", vision: true, help: "provider_help_openrouter" },
+  { id: "openai", name: "OpenAI (GPT-4o)", vision: true, help: "provider_help_openai" },
+  { id: "gemini", name: "Google Gemini (free tier)", vision: true, help: "provider_help_gemini" },
+  { id: "groq", name: "Groq (fast + free tier)", vision: false, help: "provider_help_groq" },
+  { id: "deepseek", name: "DeepSeek", vision: false, help: "provider_help_deepseek" },
+  { id: "qwen", name: "Qwen / Alibaba (通义千问)", vision: false, help: "provider_help_qwen" },
+  { id: "zhipu", name: "Zhipu / GLM (智谱)", vision: false, help: "provider_help_zhipu" },
+];
+
+let savedProv = localStorage.getItem("fc_provider") || "openrouter";
+
+function renderProviders() {
+  const sel = document.getElementById("provider");
+  sel.innerHTML = ALL_PROVIDERS.map(p =>
+    `<option value="${p.id}" ${p.id === savedProv ? "selected" : ""}>${p.name}${p.vision ? " 👁️" : ""}</option>`
+  ).join("");
+  sel.value = savedProv;
+}
+
+function updateProviderHelp() {
+  const pid = document.getElementById("provider").value;
+  const p = ALL_PROVIDERS.find(x => x.id === pid);
+  document.getElementById("providerHint").textContent = p ? t(p.help) : "";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderProviders();
+  updateProviderHelp();
+});
+
+document.getElementById("provider").addEventListener("change", function() {
+  savedProv = this.value;
+  localStorage.setItem("fc_provider", savedProv);
+  updateProviderHelp();
+  document.getElementById("apiKey").placeholder = t("apikey_placeholder");
+});
+
+// API Key persistence
+const keyInput = document.getElementById("apiKey");
+keyInput.value = localStorage.getItem("fc_api_key") || "";
+keyInput.addEventListener("change", () => localStorage.setItem("fc_api_key", keyInput.value));
+
+// ============ State ============
+let cards = [], current = 0, correct = 0, wrong = 0, flipped = false, finished = false;
+let mode = "stem";
+let currentFile = null;
+
+// ============ Mode & Tabs ============
+function selectMode(m) {
+  mode = m;
+  document.querySelectorAll(".mode-card").forEach(el => el.classList.toggle("active", el.dataset.mode === m));
+}
+function switchTab(tab) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  document.getElementById("tab-text").classList.toggle("hidden", tab !== "text");
+  document.getElementById("tab-file").classList.toggle("hidden", tab !== "file");
+}
+
+// ============ File handling ============
+const dropZone = document.getElementById("dropZone");
+dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e => {
+  e.preventDefault(); dropZone.classList.remove("dragover");
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function getFileType(file) {
+  if (file.type && file.type !== "application/octet-stream") return file.type;
+  const map = { pdf:"application/pdf", docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc:"application/msword", png:"image/png", jpg:"image/jpeg", jpeg:"image/jpeg" };
+  return map[(file.name.split(".").pop()||"").toLowerCase()] || "";
+}
+function fmtSize(b) { if (b<1024) return b+" B"; if (b<1048576) return (b/1024).toFixed(0)+" KB"; return (b/1048576).toFixed(1)+" MB"; }
+
+function handleFile(file) {
+  if (!file) return;
+  const resolved = getFileType(file);
+  const allowed = ["application/pdf","application/vnd.openxmlformats-officedocument.wordprocessingml.document","image/png","image/jpeg"];
+  if (!allowed.includes(resolved)) return toast(t("toast_file_unsupported"));
+  if (file.size > 30*1024*1024) return toast(t("toast_file_large"));
+  const r = new FileReader();
+  r.onload = () => {
+    currentFile = { name: file.name, size: file.size, type: resolved, base64: r.result.split(",")[1] };
+    document.getElementById("fileName").textContent = file.name;
+    document.getElementById("fileSize").textContent = fmtSize(file.size);
+    document.getElementById("fileInfo").classList.remove("hidden");
+    dropZone.classList.add("hidden");
+  };
+  r.onerror = () => toast("Failed to read file. Try again.");
+  r.readAsDataURL(file);
+}
+
+function clearFile() {
+  currentFile = null;
+  document.getElementById("fileInfo").classList.add("hidden");
+  dropZone.classList.remove("hidden");
+  document.getElementById("fileInput").value = "";
+}
+
+// ============ Toast ============
+function toast(msg, info) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.className = "toast" + (info ? " info" : ""); el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3500);
+}
+
+// ============ Demo ============
+function fillDemo() {
+  clearFile(); switchTab("text");
+  document.getElementById("notes").value =
+    "Photosynthesis is the process by which green plants convert sunlight into chemical energy. " +
+    "It takes place in chloroplasts, which contain the pigment chlorophyll. " +
+    "The overall equation is: 6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂. " +
+    "The process has two main stages: the light-dependent reactions (which occur in the thylakoid membranes and produce ATP and NADPH) " +
+    "and the Calvin cycle (which occurs in the stroma and fixes CO₂ into glucose using the ATP and NADPH from the light reactions).";
+  toast(t("toast_demo"), true);
+}
+
+// ============ Generate ============
+async function generate() {
+  const apiKey = keyInput.value.trim();
+  const provider = document.getElementById("provider").value;
+  const count = parseInt(document.getElementById("count").value);
+  const notes = document.getElementById("notes").value.trim();
+  const btn = document.getElementById("generateBtn");
+
+  if (!apiKey) return toast(t("toast_no_apikey"));
+  if (!currentFile && notes.length < 10) return toast(t("toast_short_notes"));
+  if (currentFile && currentFile.type.startsWith("image/")) {
+    const visionProviders = ["openrouter","openai","gemini"];
+    if (!visionProviders.includes(provider)) return toast(t("image_hint"));
+  }
+
+  btn.disabled = true; btn.textContent = t("generating");
+
+  try {
+    const body = { notes, count, apiKey, provider, mode };
+    if (currentFile) { body.file = currentFile.base64; body.fileName = currentFile.name; body.fileType = currentFile.type; }
+    const resp = await fetch("/api/generate", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body) });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Request failed");
+    if (!data.flashcards || data.flashcards.length === 0) throw new Error("No cards returned");
+
+    cards = data.flashcards; current = 0; correct = 0; wrong = 0; finished = false;
+    document.getElementById("extractedNote").innerHTML = data.extractedFrom
+      ? `<span class="extracted-badge">${t("extracted_from")} ${data.extractedFrom}</span>` : "";
+    showStudy();
+  } catch(e) { toast(e.message); }
+  finally { btn.disabled = false; btn.textContent = t("generate_btn"); }
+}
+
+// ============ Study ============
+function showStudy() {
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("study").classList.remove("hidden");
+  document.getElementById("summary").classList.add("hidden");
+  renderCard();
+}
+function renderCard() {
+  const c = cards[current];
+  document.getElementById("cardFront").textContent = c.front;
+  document.getElementById("cardBack").textContent = c.back;
+  document.getElementById("flipInner").classList.remove("flipped"); flipped = false;
+  document.getElementById("progress").textContent = (current+1) + " / " + cards.length;
+  document.getElementById("progressFill").style.width = (current/cards.length*100) + "%";
+  document.getElementById("correctCount").textContent = correct;
+  document.getElementById("wrongCount").textContent = wrong;
+}
+function flip() { if (!finished) { document.getElementById("flipInner").classList.toggle("flipped"); flipped = !flipped; } }
+function answer(gotIt) {
+  if (finished) return;
+  if (gotIt) correct++; else wrong++;
+  if (current+1 >= cards.length) {
+    finished = true;
+    document.getElementById("progressFill").style.width = "100%";
+    document.getElementById("correctCount").textContent = correct;
+    document.getElementById("wrongCount").textContent = wrong;
+    showSummary();
+  } else { current++; renderCard(); }
+}
+function showSummary() {
+  document.getElementById("study").classList.add("hidden");
+  document.getElementById("summary").classList.remove("hidden");
+  document.getElementById("sumCorrect").textContent = correct;
+  document.getElementById("sumWrong").textContent = wrong;
+  document.getElementById("reviewBtn").classList.toggle("hidden", wrong === 0);
+}
+function reviewWrong() { current = 0; correct = 0; wrong = 0; finished = false; showStudy(); }
+function resetAll() {
+  cards = []; current = 0; correct = 0; wrong = 0; finished = false;
+  document.getElementById("study").classList.add("hidden");
+  document.getElementById("summary").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+  document.getElementById("extractedNote").innerHTML = "";
+}
+</script>
+</body>
+</html>
