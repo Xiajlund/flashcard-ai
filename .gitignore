@@ -4,3 +4,4 @@ server.log
 test.docx
 *.tmp
 stats.json
+.env

@@ -1,3 +1,4 @@
+require("dotenv").config();
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
@@ -6,7 +7,7 @@ const mammoth = require("mammoth");
 const stats = require("./stats");
 
 const PORT = process.env.PORT || 3000;
-const DEFAULT_API_KEY = process.env.DEEPSEEK_API_KEY || "sk-e2ddac4678bf43409cb56f4d4838e0ab";
+const DEFAULT_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 const DEFAULT_PROVIDER = "deepseek";
 const STATIC = {
   ".html": "text/html; charset=utf-8",
