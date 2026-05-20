@@ -89,4 +89,8 @@ function persist() {
 }
 setInterval(persist, SAVE_INTERVAL);
 
+// Save on shutdown (Render sends SIGTERM on scale-to-zero)
+process.on("SIGTERM", () => { persist(); process.exit(0); });
+process.on("SIGINT", () => { persist(); process.exit(0); });
+
 module.exports = { trackVisit, trackGenStart, trackGenEnd, snapshot };
