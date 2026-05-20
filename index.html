@@ -98,6 +98,22 @@
   .extracted-badge { display: inline-block; background: #1e3a3a; color: var(--green); font-size: 11px; padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
   .demo-link { font-size: 12px; color: var(--accent2); cursor: pointer; text-decoration: underline; display: block; text-align: center; margin-top: 8px; }
 
+  /* Library */
+  .lib-save-panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-top: 16px; text-align: left; }
+  .lib-save-panel .section-label { margin-top: 0; }
+  .card-checklist { max-height: 200px; overflow-y: auto; margin-bottom: 4px; }
+  .card-checklist label { display: flex; align-items: flex-start; gap: 8px; padding: 8px; cursor: pointer; border-radius: 6px; font-size: 13px; transition: background .15s; }
+  .card-checklist label:hover { background: var(--card2); }
+  .card-checklist input[type=checkbox] { width: auto; margin-top: 2px; accent-color: var(--accent); }
+  .checklist-actions { display: flex; gap: 12px; }
+  .checklist-actions .demo-link { font-size: 11px; }
+  .deck-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; cursor: pointer; transition: all .15s; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .deck-card:hover { border-color: var(--accent2); background: #1e1b4b; }
+  .deck-info .deck-name { font-size: 15px; font-weight: 600; }
+  .deck-info .deck-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .deck-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 18px; padding: 4px 8px; border-radius: 4px; transition: all .15s; }
+  .deck-del:hover { color: var(--red); background: rgba(239,68,68,.15); }
+
   @media (max-width: 480px) { .mode-row { flex-direction: column; } .flip-card { height: 300px; } }
 </style>
 </head>
@@ -168,7 +184,10 @@
       </select>
     </div>
     <button class="btn btn-primary" id="generateBtn" onclick="generate()" data-i18n="generate_btn">⚡ Generate Flashcards</button>
-    <span class="demo-link" onclick="document.getElementById('importFile').click()" data-i18n="import_link">📂 Import saved cards (JSON) →</span>
+    <div style="display:flex;gap:12px;margin-top:12px;justify-content:center">
+      <span class="demo-link" onclick="openLibrary()" data-i18n="my_library_link">📚 My Library</span>
+      <span class="demo-link" onclick="document.getElementById('importFile').click()" data-i18n="import_link">📂 Import JSON</span>
+    </div>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importCards(this.files[0])">
   </section>
 
@@ -194,10 +213,7 @@
       <button class="btn btn-red" onclick="answer(false)" data-i18n="btn_again">✕ Need Review</button>
       <button class="btn btn-green" onclick="answer(true)" data-i18n="btn_gotit">✓ Got It</button>
     </div>
-    <div class="action-row">
-      <button class="btn btn-outline" style="flex:1" onclick="exportCards()" data-i18n="btn_export_json">💾 Save (Re-import)</button>
-      <button class="btn btn-outline" style="flex:1" onclick="exportText()" data-i18n="btn_export_text">📄 Save (Printable)</button>
-    </div>
+    <button class="btn btn-outline" style="width:100%;margin-bottom:8px" onclick="saveToLibrary()" data-i18n="btn_save_lib">💾 Save to My Library</button>
     <button class="btn btn-outline" style="width:100%" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
   </section>
 
@@ -209,14 +225,36 @@
         <div class="stat"><div class="stat-num green" id="sumCorrect">0</div><div class="stat-label" data-i18n="sum_correct">Mastered</div></div>
         <div class="stat"><div class="stat-num red" id="sumWrong">0</div><div class="stat-label" data-i18n="sum_wrong">To Review</div></div>
       </div>
-      <div style="display:flex;gap:8px">
+      <!-- Save to Library panel -->
+      <div class="lib-save-panel">
+        <div class="section-label" data-i18n="save_to_lib" style="text-align:left">Save to My Library</div>
+        <input id="deckName" type="text" data-i18n-placeholder="deck_name_placeholder" style="margin-bottom:8px">
+        <div class="card-checklist" id="cardChecklist"></div>
+        <div class="checklist-actions">
+          <span class="demo-link" onclick="toggleAllCards(true)" data-i18n="select_all">Select All</span>
+          <span class="demo-link" onclick="toggleAllCards(false)" data-i18n="deselect_all">Deselect All</span>
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="saveToLibrary()" data-i18n="btn_save_deck">💾 Save Deck</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px">
         <button class="btn btn-outline" style="flex:1" onclick="reviewWrong()" id="reviewBtn" data-i18n="btn_review">🔄 Review Wrong Cards</button>
         <button class="btn btn-primary" style="flex:1" onclick="resetAll()" data-i18n="btn_new">New Material</button>
       </div>
-      <div class="action-row">
-        <button class="btn btn-outline" style="flex:1" onclick="exportCards()" data-i18n="btn_export_json">💾 Save (Re-import)</button>
-        <button class="btn btn-outline" style="flex:1" onclick="exportText()" data-i18n="btn_export_text">📄 Save (Printable)</button>
-      </div>
+    </div>
+  </section>
+
+  <!-- Library -->
+  <section id="library" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="font-size:20px" data-i18n="my_library">My Library</h2>
+      <button class="btn btn-outline" onclick="backToSetup()" data-i18n="btn_back">← Back</button>
+    </div>
+    <div id="deckList"></div>
+    <div id="emptyLibrary" class="card" style="text-align:center;padding:40px;color:var(--text2))">
+      <div style="font-size:40px;margin-bottom:12px">📚</div>
+      <div style="font-size:16px" data-i18n="lib_empty_title">No saved decks yet</div>
+      <div style="font-size:13px;margin-top:4px" data-i18n="lib_empty_hint">Generate flashcards first, then save them to your library.</div>
     </div>
   </section>
 </div>
@@ -261,9 +299,17 @@ const I18N = {
     provider_help_zhipu: "Get a key at open.bigmodel.cn",
     provider_help_deepseek: "Get a key at platform.deepseek.com",
     provider_help_gemini: "Get a free key at aistudio.google.com",
-    btn_export_json: "💾 Save (Re-import)",
-    btn_export_text: "📄 Save (Printable)",
-    import_link: "📂 Import saved cards (JSON) →",
+    btn_save_lib: "💾 Save to My Library",
+    btn_save_deck: "💾 Save Deck",
+    save_to_lib: "Save to My Library",
+    deck_name_placeholder: "Deck name (e.g. Biology Ch3)...",
+    select_all: "Select All",
+    deselect_all: "Deselect All",
+    my_library: "My Library",
+    my_library_link: "📚 My Library",
+    lib_empty_title: "No saved decks yet",
+    lib_empty_hint: "Generate flashcards first, then save them to your library.",
+    import_link: "📂 Import JSON",
   },
   zh: {
     subtitle: "上传笔记或粘贴文本 — AI 自动生成复习闪卡",
@@ -300,9 +346,17 @@ const I18N = {
     provider_help_zhipu: "在 open.bigmodel.cn 获取密钥（智谱）",
     provider_help_deepseek: "在 platform.deepseek.com 获取密钥",
     provider_help_gemini: "在 aistudio.google.com 获取免费密钥",
-    btn_export_json: "💾 保存 (可重新导入)",
-    btn_export_text: "📄 保存 (可打印)",
-    import_link: "📂 导入已保存的卡片 (JSON) →",
+    btn_save_lib: "💾 保存到我的库",
+    btn_save_deck: "💾 保存卡组",
+    save_to_lib: "保存到我的库",
+    deck_name_placeholder: "卡组名称（如：生物第三章）...",
+    select_all: "全选",
+    deselect_all: "取消全选",
+    my_library: "我的库",
+    my_library_link: "📚 我的库",
+    lib_empty_title: "还没有保存的卡组",
+    lib_empty_hint: "先生成闪卡，再保存到你的库中。",
+    import_link: "📂 导入 JSON",
   },
   ja: {
     subtitle: "ノートをアップロードまたはテキストを貼り付け — AIが学習カードを生成",
@@ -339,9 +393,17 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn でキーを取得",
     provider_help_deepseek: "platform.deepseek.com でキーを取得",
     provider_help_gemini: "aistudio.google.com で無料キーを取得",
-    btn_export_json: "💾 保存 (再インポート用)",
-    btn_export_text: "📄 保存 (印刷用)",
-    import_link: "📂 保存したカードをインポート (JSON) →",
+    btn_save_lib: "💾 ライブラリに保存",
+    btn_save_deck: "💾 デッキを保存",
+    save_to_lib: "ライブラリに保存",
+    deck_name_placeholder: "デッキ名（例：生物第3章）...",
+    select_all: "すべて選択",
+    deselect_all: "選択解除",
+    my_library: "マイライブラリ",
+    my_library_link: "📚 マイライブラリ",
+    lib_empty_title: "保存されたデッキはまだありません",
+    lib_empty_hint: "まずフラッシュカードを生成し、ライブラリに保存してください。",
+    import_link: "📂 JSONをインポート",
   },
   ko: {
     subtitle: "노트를 업로드하거나 텍스트를 붙여넣기 — AI가 학습 카드를 생성",
@@ -378,9 +440,17 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn에서 키 발급",
     provider_help_deepseek: "platform.deepseek.com에서 키 발급",
     provider_help_gemini: "aistudio.google.com에서 무료 키 발급",
-    btn_export_json: "💾 저장 (재가져오기용)",
-    btn_export_text: "📄 저장 (인쇄용)",
-    import_link: "📂 저장된 카드 가져오기 (JSON) →",
+    btn_save_lib: "💾 라이브러리에 저장",
+    btn_save_deck: "💾 덱 저장",
+    save_to_lib: "라이브러리에 저장",
+    deck_name_placeholder: "덱 이름 (예: 생물학 3장)...",
+    select_all: "전체 선택",
+    deselect_all: "선택 해제",
+    my_library: "내 라이브러리",
+    my_library_link: "📚 내 라이브러리",
+    lib_empty_title: "저장된 덱이 없습니다",
+    lib_empty_hint: "먼저 플래시카드를 생성한 다음 라이브러리에 저장하세요.",
+    import_link: "📂 JSON 가져오기",
   },
 };
 
@@ -447,6 +517,7 @@ document.getElementById("provider").addEventListener("change", function() {
 let cards = [], current = 0, correct = 0, wrong = 0, flipped = false, finished = false;
 let mode = "stem";
 let currentFile = null;
+let fromLibrary = false;
 
 // ============ Mode & Tabs ============
 function selectMode(m) {
@@ -585,44 +656,113 @@ function showSummary() {
   document.getElementById("sumCorrect").textContent = correct;
   document.getElementById("sumWrong").textContent = wrong;
   document.getElementById("reviewBtn").classList.toggle("hidden", wrong === 0);
+  document.getElementById("deckName").value = "Deck " + new Date().toLocaleDateString();
+  renderChecklist();
 }
 function reviewWrong() { current = 0; correct = 0; wrong = 0; finished = false; showStudy(); }
 function resetAll() {
   cards = []; current = 0; correct = 0; wrong = 0; finished = false;
   document.getElementById("study").classList.add("hidden");
   document.getElementById("summary").classList.add("hidden");
-  document.getElementById("setup").classList.remove("hidden");
   document.getElementById("extractedNote").innerHTML = "";
+  if (fromLibrary) {
+    fromLibrary = false;
+    document.getElementById("library").classList.remove("hidden");
+    renderLibrary();
+  } else {
+    document.getElementById("library").classList.add("hidden");
+    document.getElementById("setup").classList.remove("hidden");
+  }
 }
 
-function exportCards() {
-  const blob = new Blob([JSON.stringify(cards, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `flashcards-${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast(cards.length + " cards saved. Use \"Import\" to reload them later.", true);
+// ============ Library ============
+function loadLibrary() {
+  try { return JSON.parse(localStorage.getItem("fc_library") || "[]"); }
+  catch { return []; }
+}
+function saveLibrary(decks) { localStorage.setItem("fc_library", JSON.stringify(decks)); }
+
+function saveToLibrary() {
+  if (cards.length === 0) return toast("No cards to save.");
+  const nameInput = document.getElementById("deckName");
+  const name = (nameInput && nameInput.value.trim()) || ("Deck " + new Date().toLocaleDateString());
+  const checked = document.querySelectorAll(".card-checklist input[type=checkbox]");
+  let selected = [];
+  if (checked.length > 0) {
+    checked.forEach((cb, i) => { if (cb.checked && cards[i]) selected.push(cards[i]); });
+  } else {
+    selected = cards;
+  }
+  if (selected.length === 0) return toast("Select at least one card.");
+
+  const decks = loadLibrary();
+  decks.push({ id: Date.now().toString(), name, cards: selected, mode, createdAt: new Date().toISOString() });
+  saveLibrary(decks);
+  toast(selected.length + " cards saved to \"" + name + "\".", true);
+  if (nameInput) nameInput.value = "";
 }
 
-function exportText() {
-  const date = new Date().toISOString().slice(0, 10);
-  let txt = "═══════════════════════════════════\n";
-  txt += "  FLASHCARD AI — Study Deck\n";
-  txt += `  Exported: ${date}  |  Cards: ${cards.length}\n`;
-  txt += "═══════════════════════════════════\n\n";
-  cards.forEach((c, i) => {
-    txt += `━━━ CARD ${i + 1} ━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-    txt += `FRONT:\n${c.front}\n\n`;
-    txt += `BACK:\n${c.back}\n\n`;
-  });
-  const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `flashcards-${date}.txt`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast(cards.length + " cards exported as printable text.", true);
+function openLibrary() {
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("study").classList.add("hidden");
+  document.getElementById("summary").classList.add("hidden");
+  document.getElementById("library").classList.remove("hidden");
+  renderLibrary();
+}
+
+function backToSetup() {
+  document.getElementById("library").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+}
+
+function renderLibrary() {
+  const decks = loadLibrary();
+  const list = document.getElementById("deckList");
+  const empty = document.getElementById("emptyLibrary");
+  if (decks.length === 0) { list.innerHTML = ""; empty.style.display = "block"; return; }
+  empty.style.display = "none";
+  list.innerHTML = decks.map((d, i) => `
+    <div class="deck-card" onclick="openDeck('${d.id}')">
+      <div class="deck-info">
+        <div class="deck-name">${escHtml(d.name)}</div>
+        <div class="deck-meta">${d.cards.length} cards · ${new Date(d.createdAt).toLocaleDateString()} · ${d.mode === "stem" ? "STEM" : "Arts"}</div>
+      </div>
+      <button class="deck-del" onclick="event.stopPropagation();deleteDeck(${i})" title="Delete">✕</button>
+    </div>`).join("");
+}
+
+function openDeck(id) {
+  const decks = loadLibrary();
+  const deck = decks.find(d => d.id === id);
+  if (!deck) return;
+  cards = deck.cards; current = 0; correct = 0; wrong = 0; finished = false; mode = deck.mode;
+  fromLibrary = true;
+  document.getElementById("library").classList.add("hidden");
+  document.getElementById("extractedNote").innerHTML = `<span class="extracted-badge">📚 ${escHtml(deck.name)}</span>`;
+  showStudy();
+}
+
+function deleteDeck(i) {
+  const decks = loadLibrary();
+  const name = decks[i].name;
+  decks.splice(i, 1);
+  saveLibrary(decks);
+  renderLibrary();
+  toast("Deleted \"" + name + "\".", true);
+}
+
+function toggleAllCards(checked) {
+  document.querySelectorAll(".card-checklist input[type=checkbox]").forEach(cb => { cb.checked = checked; });
+}
+
+function escHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+function renderChecklist() {
+  const el = document.getElementById("cardChecklist");
+  if (!el) return;
+  el.innerHTML = cards.map((c, i) =>
+    `<label><input type="checkbox" checked> <span>${escHtml(c.front).substring(0, 80)}${c.front.length > 80 ? "…" : ""}</span></label>`
+  ).join("");
 }
 
 function importCards(file) {
