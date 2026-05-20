@@ -3,3 +3,4 @@ server.log
 .DS_Store
 test.docx
 *.tmp
+stats.json
