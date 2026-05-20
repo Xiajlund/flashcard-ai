@@ -141,7 +141,7 @@
     <div class="card" id="apikeyCard">
       <label data-i18n="apikey">API Key</label>
       <input type="password" id="apiKey" data-i18n-placeholder="apikey_placeholder" autocomplete="off">
-      <div class="provider-hint" data-i18n="apikey_stored">Stored only in your browser</div>
+      <div class="provider-hint" id="apikeyHint"></div>
     </div>
     <div class="section-label" data-i18n="subject_mode">Subject Mode</div>
     <div class="mode-row" id="modeRow">
@@ -273,6 +273,9 @@ const I18N = {
     subtitle: "Upload notes or paste text — AI turns them into study cards",
     provider: "AI Provider", apikey: "API Key", apikey_placeholder: "Paste your API key here...",
     apikey_stored: "Stored only in your browser",
+    apikey_free: "Free default key included — no need to enter anything",
+    apikey_required: "Enter your own {provider} API key to use this model",
+    apikey_placeholder_optional: "Optional — free key included",
     subject_mode: "Subject Mode",
     stem_title: "STEM", stem_desc: "Problem → solution steps → answer",
     arts_title: "Arts & Humanities", arts_desc: "Concept → definition → memory hooks",
@@ -320,6 +323,9 @@ const I18N = {
     subtitle: "上传笔记或粘贴文本 — AI 自动生成复习闪卡",
     provider: "AI 服务商", apikey: "API 密钥", apikey_placeholder: "在此粘贴 API 密钥...",
     apikey_stored: "仅存储在你的浏览器中",
+    apikey_free: "已内置免费 Key — 无需填写",
+    apikey_required: "输入你自己的 {provider} API Key 以使用此模型",
+    apikey_placeholder_optional: "可选 — 已内置免费 Key",
     subject_mode: "学科模式",
     stem_title: "理工科", stem_desc: "出题 → 解题步骤 → 答案",
     arts_title: "文史商科", arts_desc: "概念 → 定义 → 关联记忆",
@@ -367,6 +373,9 @@ const I18N = {
     subtitle: "ノートをアップロードまたはテキストを貼り付け — AIが学習カードを生成",
     provider: "AIプロバイダー", apikey: "APIキー", apikey_placeholder: "APIキーを貼り付け...",
     apikey_stored: "ブラウザにのみ保存されます",
+    apikey_free: "無料のデフォルトキー付き — 入力不要",
+    apikey_required: "{provider} のAPIキーを入力してください",
+    apikey_placeholder_optional: "オプション — 無料キー付き",
     subject_mode: "科目モード",
     stem_title: "理系", stem_desc: "問題 → 解答手順 → 答え",
     arts_title: "文系・ビジネス", arts_desc: "概念 → 定義 → 記憶のフック",
@@ -414,6 +423,9 @@ const I18N = {
     subtitle: "노트를 업로드하거나 텍스트를 붙여넣기 — AI가 학습 카드를 생성",
     provider: "AI 제공업체", apikey: "API 키", apikey_placeholder: "API 키를 붙여넣기...",
     apikey_stored: "브라우저에만 저장됩니다",
+    apikey_free: "무료 기본 키 포함 — 입력 불필요",
+    apikey_required: "{provider} API 키를 입력하세요",
+    apikey_placeholder_optional: "선택 사항 — 무료 키 포함",
     subject_mode: "과목 모드",
     stem_title: "이공계", stem_desc: "문제 → 풀이 단계 → 정답",
     arts_title: "인문·비즈니스", arts_desc: "개념 → 정의 → 기억 연결",
@@ -504,6 +516,21 @@ function updateProviderHelp() {
   const pid = document.getElementById("provider").value;
   const p = ALL_PROVIDERS.find(x => x.id === pid);
   document.getElementById("providerHint").textContent = p ? t(p.help) : "";
+  updateApiKeyHint(pid);
+}
+
+function updateApiKeyHint(pid) {
+  const hint = document.getElementById("apikeyHint");
+  const input = document.getElementById("apiKey");
+  if (pid === "deepseek") {
+    hint.innerHTML = '<span style="color:#22c55e">✓ ' + t("apikey_free") + '</span>';
+    input.placeholder = t("apikey_placeholder_optional");
+    input.style.borderColor = "";
+  } else {
+    hint.innerHTML = '<span style="color:#f59e0b">🔑 ' + t("apikey_required").replace("{provider}", ALL_PROVIDERS.find(x=>x.id===pid)?.name || pid) + '</span>';
+    input.placeholder = t("apikey_placeholder");
+    input.style.borderColor = "";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
