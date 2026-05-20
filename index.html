@@ -194,8 +194,11 @@
       <button class="btn btn-red" onclick="answer(false)" data-i18n="btn_again">✕ Need Review</button>
       <button class="btn btn-green" onclick="answer(true)" data-i18n="btn_gotit">✓ Got It</button>
     </div>
-    <button class="btn btn-outline" style="width:100%;margin-bottom:8px" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
-    <button class="btn btn-outline" style="width:100%" onclick="exportCards()" data-i18n="btn_export">💾 Export Cards (JSON)</button>
+    <div class="action-row">
+      <button class="btn btn-outline" style="flex:1" onclick="exportCards()" data-i18n="btn_export_json">💾 Save (Re-import)</button>
+      <button class="btn btn-outline" style="flex:1" onclick="exportText()" data-i18n="btn_export_text">📄 Save (Printable)</button>
+    </div>
+    <button class="btn btn-outline" style="width:100%" onclick="resetAll()" data-i18n="btn_back">← Back to Setup</button>
   </section>
 
   <!-- Summary -->
@@ -210,7 +213,10 @@
         <button class="btn btn-outline" style="flex:1" onclick="reviewWrong()" id="reviewBtn" data-i18n="btn_review">🔄 Review Wrong Cards</button>
         <button class="btn btn-primary" style="flex:1" onclick="resetAll()" data-i18n="btn_new">New Material</button>
       </div>
-      <button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="exportCards()" data-i18n="btn_export">💾 Export Cards (JSON)</button>
+      <div class="action-row">
+        <button class="btn btn-outline" style="flex:1" onclick="exportCards()" data-i18n="btn_export_json">💾 Save (Re-import)</button>
+        <button class="btn btn-outline" style="flex:1" onclick="exportText()" data-i18n="btn_export_text">📄 Save (Printable)</button>
+      </div>
     </div>
   </section>
 </div>
@@ -255,7 +261,8 @@ const I18N = {
     provider_help_zhipu: "Get a key at open.bigmodel.cn",
     provider_help_deepseek: "Get a key at platform.deepseek.com",
     provider_help_gemini: "Get a free key at aistudio.google.com",
-    btn_export: "💾 Export Cards (JSON)",
+    btn_export_json: "💾 Save (Re-import)",
+    btn_export_text: "📄 Save (Printable)",
     import_link: "📂 Import saved cards (JSON) →",
   },
   zh: {
@@ -293,7 +300,8 @@ const I18N = {
     provider_help_zhipu: "在 open.bigmodel.cn 获取密钥（智谱）",
     provider_help_deepseek: "在 platform.deepseek.com 获取密钥",
     provider_help_gemini: "在 aistudio.google.com 获取免费密钥",
-    btn_export: "💾 导出卡片 (JSON)",
+    btn_export_json: "💾 保存 (可重新导入)",
+    btn_export_text: "📄 保存 (可打印)",
     import_link: "📂 导入已保存的卡片 (JSON) →",
   },
   ja: {
@@ -331,7 +339,8 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn でキーを取得",
     provider_help_deepseek: "platform.deepseek.com でキーを取得",
     provider_help_gemini: "aistudio.google.com で無料キーを取得",
-    btn_export: "💾 カードをエクスポート (JSON)",
+    btn_export_json: "💾 保存 (再インポート用)",
+    btn_export_text: "📄 保存 (印刷用)",
     import_link: "📂 保存したカードをインポート (JSON) →",
   },
   ko: {
@@ -369,7 +378,8 @@ const I18N = {
     provider_help_zhipu: "open.bigmodel.cn에서 키 발급",
     provider_help_deepseek: "platform.deepseek.com에서 키 발급",
     provider_help_gemini: "aistudio.google.com에서 무료 키 발급",
-    btn_export: "💾 카드 내보내기 (JSON)",
+    btn_export_json: "💾 저장 (재가져오기용)",
+    btn_export_text: "📄 저장 (인쇄용)",
     import_link: "📂 저장된 카드 가져오기 (JSON) →",
   },
 };
@@ -592,7 +602,27 @@ function exportCards() {
   a.download = `flashcards-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
-  toast("Saved " + cards.length + " cards to your computer.", true);
+  toast(cards.length + " cards saved. Use \"Import\" to reload them later.", true);
+}
+
+function exportText() {
+  const date = new Date().toISOString().slice(0, 10);
+  let txt = "═══════════════════════════════════\n";
+  txt += "  FLASHCARD AI — Study Deck\n";
+  txt += `  Exported: ${date}  |  Cards: ${cards.length}\n`;
+  txt += "═══════════════════════════════════\n\n";
+  cards.forEach((c, i) => {
+    txt += `━━━ CARD ${i + 1} ━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+    txt += `FRONT:\n${c.front}\n\n`;
+    txt += `BACK:\n${c.back}\n\n`;
+  });
+  const blob = new Blob([txt], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `flashcards-${date}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(cards.length + " cards exported as printable text.", true);
 }
 
 function importCards(file) {
