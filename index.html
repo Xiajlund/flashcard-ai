@@ -171,13 +171,18 @@
       <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="upload-icon">📤</div>
         <div class="upload-text" data-i18n="upload_text">Click to upload or drag & drop</div>
-        <div class="upload-hint" data-i18n="upload_hint">PDF · DOCX · PNG · JPEG · max 30MB</div>
-        <input type="file" id="fileInput" accept=".pdf,.docx,image/png,image/jpeg,image/jpg" onchange="handleFile(this.files[0])">
+        <div class="upload-hint" data-i18n="upload_hint">Image · PDF · DOCX · max 30MB</div>
+        <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])">
+        <input type="file" id="docInput" accept=".pdf,.docx" onchange="handleFile(this.files[0])">
       </div>
       <div class="file-info hidden" id="fileInfo">
         <span>📄</span><span class="name" id="fileName"></span>
         <span style="font-size:11px;color:var(--text2)" id="fileSize"></span>
         <span class="remove" onclick="clearFile()">✕</span>
+      </div>
+      <div class="upload-btns" style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-upload" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="flex:1;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--text);cursor:pointer;font-size:13px">📷 Photo</button>
+        <button class="btn btn-upload" onclick="event.stopPropagation();document.getElementById('docInput').click()" style="flex:1;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--text);cursor:pointer;font-size:13px">📄 Document</button>
       </div>
       <div class="provider-hint" data-i18n="image_hint">💡 Image upload needs a vision-capable provider (OpenRouter, OpenAI, Gemini).</div>
     </div>
