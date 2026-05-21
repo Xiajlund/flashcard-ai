@@ -184,7 +184,7 @@
         <button class="btn btn-upload" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="flex:1;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--text);cursor:pointer;font-size:13px">📷 Photo</button>
         <button class="btn btn-upload" onclick="event.stopPropagation();document.getElementById('docInput').click()" style="flex:1;padding:10px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);color:var(--text);cursor:pointer;font-size:13px">📄 Document</button>
       </div>
-      <div class="provider-hint" data-i18n="image_hint">💡 Image upload needs a vision-capable provider (OpenRouter, OpenAI, Gemini).</div>
+      <div id="imageHint" style="margin-top:12px;padding:10px 12px;border-radius:10px;font-size:13px;display:none"></div>
     </div>
 
     <div class="card">
@@ -290,6 +290,9 @@ const I18N = {
     upload_text: "Click to upload or drag & drop",
     upload_hint: "PDF · DOCX · PNG · JPEG · max 30MB",
     image_hint: "💡 Image upload needs a vision-capable provider (OpenRouter, OpenAI, Gemini).",
+    image_hint_blind: "⚠️ Built-in DeepSeek cannot read images. To upload photos, switch to OpenRouter, OpenAI, or Gemini and add your own API key.",
+    image_hint_needs_key: "🔑 Add your {provider} API key above to enable image recognition.",
+    image_hint_ready: "✓ {provider} is vision-ready! You can upload photos and screenshots.",
     card_count: "Number of Cards",
     generate_btn: "⚡ Generate Flashcards",
     generating: "Generating...",
@@ -340,6 +343,9 @@ const I18N = {
     upload_text: "点击上传或拖拽文件",
     upload_hint: "PDF · DOCX · PNG · JPEG · 最大 30MB",
     image_hint: "💡 图片上传需使用支持视觉的 AI（OpenRouter、OpenAI、Gemini）。",
+    image_hint_blind: "⚠️ 内置免费 DeepSeek 不支持图片识别。要上传图片请切换到 OpenRouter、OpenAI 或 Gemini，并填入自己的 API 密钥。",
+    image_hint_needs_key: "🔑 在上方填入 {provider} 的 API 密钥即可启用图片识别。",
+    image_hint_ready: "✓ {provider} 支持图片识别，可以上传照片和截图！",
     card_count: "生成数量",
     generate_btn: "⚡ 生成闪卡",
     generating: "生成中...",
@@ -522,6 +528,7 @@ function updateProviderHelp() {
   const p = ALL_PROVIDERS.find(x => x.id === pid);
   document.getElementById("providerHint").textContent = p ? t(p.help) : "";
   updateApiKeyHint(pid);
+  updateImageHint(pid);
 }
 
 function updateApiKeyHint(pid) {
@@ -562,6 +569,7 @@ document.getElementById("apiKey").addEventListener("input", function() {
   if (this.value.trim()) keys[savedProv] = this.value.trim();
   else delete keys[savedProv];
   localStorage.setItem("fc_apikeys", JSON.stringify(keys));
+  updateImageHint(savedProv);
 });
 
 // ============ State ============
@@ -575,10 +583,36 @@ function selectMode(m) {
   mode = m;
   document.querySelectorAll(".mode-card").forEach(el => el.classList.toggle("active", el.dataset.mode === m));
 }
+function updateImageHint(providerId) {
+  const hint = document.getElementById("imageHint");
+  const apiKey = document.getElementById("apiKey").value.trim();
+  const prov = ALL_PROVIDERS.find(p => p.id === providerId);
+  if (!prov || !prov.vision) {
+    hint.style.display = "block";
+    hint.style.background = "#2a1a1a";
+    hint.style.color = "#f59e0b";
+    hint.style.border = "1px solid #4a2020";
+    hint.textContent = t("image_hint_blind");
+  } else if (!apiKey) {
+    hint.style.display = "block";
+    hint.style.background = "#1a1a2a";
+    hint.style.color = "#f59e0b";
+    hint.style.border = "1px solid #2a2a4a";
+    hint.textContent = t("image_hint_needs_key").replace("{provider}", prov.name);
+  } else {
+    hint.style.display = "block";
+    hint.style.background = "#1a2a1a";
+    hint.style.color = "#22c55e";
+    hint.style.border = "1px solid #2a4a2a";
+    hint.textContent = t("image_hint_ready").replace("{provider}", prov.name);
+  }
+}
+
 function switchTab(tab) {
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
   document.getElementById("tab-text").classList.toggle("hidden", tab !== "text");
   document.getElementById("tab-file").classList.toggle("hidden", tab !== "file");
+  if (tab === "file") updateImageHint(document.getElementById("provider").value);
 }
 
 // ============ File handling ============
